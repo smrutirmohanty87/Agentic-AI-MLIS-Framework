@@ -30,7 +30,18 @@ export class ScotlandCommercialQuoteManagerPage {
   }
 
   async startCommercialScotlandQuote() {
-    await this.page.getByRole('link', { name: 'Scotland Start quote' }).nth(1).click();
+    const scotlandStartQuoteLink = this.page.getByRole('link', { name: 'Scotland Start quote' }).nth(1);
+    await scotlandStartQuoteLink.scrollIntoViewIfNeeded();
+    try {
+      await scotlandStartQuoteLink.click({ timeout: 20000 });
+    } catch {
+      const modalCloseButton = this.page.locator('button[title="Close"], .slds-modal__close').first();
+      if (await modalCloseButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await modalCloseButton.click();
+      }
+      await this.page.keyboard.press('Escape').catch(() => undefined);
+      await scotlandStartQuoteLink.click({ timeout: 20000, force: true });
+    }
     await expect(this.page).toHaveURL(/quoteType=Commercial&jurisdiction=Scotland/, { timeout: 20000 });
   }
 }

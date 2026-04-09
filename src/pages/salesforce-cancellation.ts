@@ -266,6 +266,9 @@ export class SalesforcePortalPage {
     await expect(relatedTab).toBeVisible({ timeout: 60000 });
     await this.clickWhenUiReady(relatedTab);
     await this.waitForLightningIdle();
+    // Extra settle time for slow Salesforce related-list rendering.
+    await this.page.waitForTimeout(5000);
+    await this.waitForLightningIdle();
   }
 
   /** Steps 8-9: Scroll to Insurance Policy section and open the record */
@@ -328,58 +331,35 @@ export class SalesforcePortalPage {
 
   /**
    * Step 5-6: Search by policy number and open the policy from the results grid.
-   * This path intentionally waits for slow Salesforce indexing/rendering.
+   * Single straight-through flow with long waits for slow Salesforce rendering.
    */
   async searchPolicyAndOpenFromGlobalSearchGrid(policyReference: string) {
+    const escapedPolicy = policyReference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const searchLauncher = this.page.locator('//*[@id="oneHeader"]/div[2]/div[2]/div/div/button').first();
     await expect(searchLauncher).toBeVisible({ timeout: 30000 });
-    await this.clickWhenUiReady(searchLauncher);
+    await searchLauncher.click();
 
-    const dialogSearchInput = this.page
-      .locator('[role="dialog"] input[type="search"]:visible, [role="dialog"] input[placeholder*="Search"]:visible')
-      .first();
-    const fallbackSearchInput = this.page
-      .locator('[role="search"] input:visible, input[placeholder="Search..."]:visible')
-      .first();
-    const headerSearchInput = this.page.getByRole('searchbox').first();
+    const globalSearchInput = this.page.getByRole('searchbox').first();
+    await expect(globalSearchInput).toBeVisible({ timeout: 60000 });
 
-    let activeSearchInput = dialogSearchInput;
-    if (!(await dialogSearchInput.isVisible({ timeout: 5000 }).catch(() => false))) {
-      if (await fallbackSearchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        activeSearchInput = fallbackSearchInput;
-      } else {
-        await expect(headerSearchInput).toBeVisible({ timeout: 15000 });
-        activeSearchInput = headerSearchInput;
-      }
-    }
+    await globalSearchInput.fill(policyReference);
+    await globalSearchInput.press('Enter');
 
-    await activeSearchInput.fill(policyReference);
-    await activeSearchInput.press('Enter');
+    // App is slow; wait for search chip then force all-results view.
+    await this.waitForLightningIdle();
+    const searchChip = this.page.getByRole('button', { name: new RegExp(`Search:\\s*${escapedPolicy}`) }).first();
+    await expect(searchChip).toBeVisible({ timeout: 120000 });
+    await searchChip.click();
 
-    // Wait for slow search indexing/rendering and open the policy link from the grid.
-    for (let attempt = 1; attempt <= 6; attempt += 1) {
-      await this.waitForLightningIdle();
+    await this.waitForLightningIdle();
+    await this.page.waitForLoadState('domcontentloaded');
 
-      const policyLink = this.page.getByRole('link', { name: new RegExp(policyReference, 'i') }).first();
-      if (await policyLink.isVisible({ timeout: 12000 }).catch(() => false)) {
-        await this.clickWhenUiReady(policyLink);
-        await this.waitForLightningIdle();
-        await this.expectInsurancePolicyRecordLoaded();
-        return;
-      }
+    const policyLink = this.page.locator('main a:visible').filter({ hasText: policyReference }).first();
+    await expect(policyLink).toBeVisible({ timeout: 240000 });
+    await policyLink.click();
 
-      const insurancePoliciesFilter = this.page.getByRole('link', { name: /Insurance Policies/i }).first();
-      if (await insurancePoliciesFilter.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await this.clickWhenUiReady(insurancePoliciesFilter);
-        await this.waitForLightningIdle();
-      }
-
-      if (attempt < 6) {
-        await this.page.waitForTimeout(15000);
-      }
-    }
-
-    throw new Error(`Policy ${policyReference} was not visible in global search results grid.`);
+    await this.waitForLightningIdle();
+    await expect(this.page.getByRole('tab', { name: 'Related' }).first()).toBeVisible({ timeout: 120000 });
   }
 
   /** Step 8: Open Notes & Attachments related list from Policy record */
@@ -391,25 +371,39 @@ export class SalesforcePortalPage {
       .getByRole('link', { name: /Notes\s*&\s*Attachments/i })
       .first();
 
-    for (let i = 0; i < 15; i += 1) {
-      if (await notesSectionLink.isVisible({ timeout: 1000 }).catch(() => false)) {
+    // Scroll down through Related tab until Notes & Attachments is rendered.
+    for (let i = 0; i < 30; i += 1) {
+      if (await notesSectionLink.isVisible({ timeout: 500 }).catch(() => false)) {
         break;
       }
       await this.page.mouse.wheel(0, 1200);
       await this.page.waitForTimeout(500);
     }
 
-    await expect(notesSectionLink).toBeVisible({ timeout: 120000 });
-    await this.clickWhenUiReady(notesSectionLink);
+    await notesSectionLink.scrollIntoViewIfNeeded();
+    await expect(notesSectionLink).toBeVisible({ timeout: 180000 });
+    await notesSectionLink.click();
     await this.waitForLightningIdle();
 
     const notesHeading = this.page.getByRole('heading', { name: /Notes\s*&\s*Attachments/i }).first();
-    await expect(notesHeading).toBeVisible({ timeout: 60000 });
+    await expect(notesHeading).toBeVisible({ timeout: 120000 });
   }
 
   /** Step 9-10: Open each document/link in Notes & Attachments, close, and assert return */
   async openEachNoteAttachmentAndClose(maxDocuments = 10) {
-    const attachmentLinks = this.page.locator('[role="rowheader"] a:visible, tbody a:visible');
+    const notesHeading = this.page.getByRole('heading', { name: /Notes\s*&\s*Attachments/i }).first();
+    await expect(notesHeading).toBeVisible({ timeout: 120000 });
+
+    // Wait for slow table rendering to complete in headless runs.
+    const listSpinner = this.page.locator('.slds-spinner_container:visible, .slds-spinner:visible').first();
+    if (await listSpinner.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await expect(listSpinner).toBeHidden({ timeout: 240000 });
+    }
+
+    const rows = this.page.locator('table tbody tr');
+    await expect.poll(async () => rows.count(), { timeout: 240000 }).toBeGreaterThan(0);
+
+    const attachmentLinks = this.page.locator('table tbody tr th[scope="row"] a:visible');
     const totalLinks = await attachmentLinks.count();
     const docsToOpen = Math.min(totalLinks, maxDocuments);
 
@@ -437,7 +431,11 @@ export class SalesforcePortalPage {
       }
 
       await this.waitForLightningIdle();
-      await expect(this.page.getByRole('heading', { name: /Notes\s*&\s*Attachments/i }).first()).toBeVisible({ timeout: 60000 });
+      if (!(await notesHeading.isVisible({ timeout: 5000 }).catch(() => false))) {
+        await this.page.goBack().catch(() => undefined);
+        await this.waitForLightningIdle();
+      }
+      await expect(notesHeading).toBeVisible({ timeout: 120000 });
     }
   }
 

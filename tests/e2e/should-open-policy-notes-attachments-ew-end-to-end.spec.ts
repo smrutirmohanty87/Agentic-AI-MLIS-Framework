@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   FinalPolicyDetailsPage,
   LoginPage,
@@ -76,5 +76,7 @@ test.describe('Policy Notes & Attachments Exploration E2E', () => {
 
     // Step 9-10: Open each document/link and close; assert still on Notes & Attachments page
     await salesforce.openEachNoteAttachmentAndClose();
+
+    await expect(page.getByRole('heading', { name: /Notes\s*&\s*Attachments/i }).first()).toBeVisible({ timeout: 120000 });
   });
 });
