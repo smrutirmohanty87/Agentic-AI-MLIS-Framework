@@ -326,6 +326,121 @@ export class SalesforcePortalPage {
     await expect(this.page.getByRole('button', { name: 'Show more actions' })).toBeVisible({ timeout: 60000 });
   }
 
+  /**
+   * Step 5-6: Search by policy number and open the policy from the results grid.
+   * This path intentionally waits for slow Salesforce indexing/rendering.
+   */
+  async searchPolicyAndOpenFromGlobalSearchGrid(policyReference: string) {
+    const searchLauncher = this.page.locator('//*[@id="oneHeader"]/div[2]/div[2]/div/div/button').first();
+    await expect(searchLauncher).toBeVisible({ timeout: 30000 });
+    await this.clickWhenUiReady(searchLauncher);
+
+    const dialogSearchInput = this.page
+      .locator('[role="dialog"] input[type="search"]:visible, [role="dialog"] input[placeholder*="Search"]:visible')
+      .first();
+    const fallbackSearchInput = this.page
+      .locator('[role="search"] input:visible, input[placeholder="Search..."]:visible')
+      .first();
+    const headerSearchInput = this.page.getByRole('searchbox').first();
+
+    let activeSearchInput = dialogSearchInput;
+    if (!(await dialogSearchInput.isVisible({ timeout: 5000 }).catch(() => false))) {
+      if (await fallbackSearchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+        activeSearchInput = fallbackSearchInput;
+      } else {
+        await expect(headerSearchInput).toBeVisible({ timeout: 15000 });
+        activeSearchInput = headerSearchInput;
+      }
+    }
+
+    await activeSearchInput.fill(policyReference);
+    await activeSearchInput.press('Enter');
+
+    // Wait for slow search indexing/rendering and open the policy link from the grid.
+    for (let attempt = 1; attempt <= 6; attempt += 1) {
+      await this.waitForLightningIdle();
+
+      const policyLink = this.page.getByRole('link', { name: new RegExp(policyReference, 'i') }).first();
+      if (await policyLink.isVisible({ timeout: 12000 }).catch(() => false)) {
+        await this.clickWhenUiReady(policyLink);
+        await this.waitForLightningIdle();
+        await this.expectInsurancePolicyRecordLoaded();
+        return;
+      }
+
+      const insurancePoliciesFilter = this.page.getByRole('link', { name: /Insurance Policies/i }).first();
+      if (await insurancePoliciesFilter.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await this.clickWhenUiReady(insurancePoliciesFilter);
+        await this.waitForLightningIdle();
+      }
+
+      if (attempt < 6) {
+        await this.page.waitForTimeout(15000);
+      }
+    }
+
+    throw new Error(`Policy ${policyReference} was not visible in global search results grid.`);
+  }
+
+  /** Step 8: Open Notes & Attachments related list from Policy record */
+  async openNotesAndAttachmentsFromRelatedTab() {
+    await this.openRelatedTab();
+
+    const notesSectionLink = this.page
+      .locator('article:visible')
+      .getByRole('link', { name: /Notes\s*&\s*Attachments/i })
+      .first();
+
+    for (let i = 0; i < 15; i += 1) {
+      if (await notesSectionLink.isVisible({ timeout: 1000 }).catch(() => false)) {
+        break;
+      }
+      await this.page.mouse.wheel(0, 1200);
+      await this.page.waitForTimeout(500);
+    }
+
+    await expect(notesSectionLink).toBeVisible({ timeout: 120000 });
+    await this.clickWhenUiReady(notesSectionLink);
+    await this.waitForLightningIdle();
+
+    const notesHeading = this.page.getByRole('heading', { name: /Notes\s*&\s*Attachments/i }).first();
+    await expect(notesHeading).toBeVisible({ timeout: 60000 });
+  }
+
+  /** Step 9-10: Open each document/link in Notes & Attachments, close, and assert return */
+  async openEachNoteAttachmentAndClose(maxDocuments = 10) {
+    const attachmentLinks = this.page.locator('[role="rowheader"] a:visible, tbody a:visible');
+    const totalLinks = await attachmentLinks.count();
+    const docsToOpen = Math.min(totalLinks, maxDocuments);
+
+    expect(docsToOpen, 'Expected at least one document/link in Notes & Attachments').toBeGreaterThan(0);
+
+    for (let i = 0; i < docsToOpen; i += 1) {
+      const link = attachmentLinks.nth(i);
+      const [newPage] = await Promise.all([
+        this.page.context().waitForEvent('page', { timeout: 10000 }).catch(() => null),
+        link.click(),
+      ]);
+
+      if (newPage) {
+        await newPage.waitForLoadState('domcontentloaded');
+        await newPage.close();
+      } else {
+        const closeButton = this.page
+          .getByRole('button', { name: /Close|Done|Back/i })
+          .first();
+        if (await closeButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await closeButton.click();
+        } else {
+          await this.page.goBack().catch(() => undefined);
+        }
+      }
+
+      await this.waitForLightningIdle();
+      await expect(this.page.getByRole('heading', { name: /Notes\s*&\s*Attachments/i }).first()).toBeVisible({ timeout: 60000 });
+    }
+  }
+
   async expectInsurancePolicyRecordLoaded() {
     await expect(this.page.getByRole('heading', { name: /Insurance Policy/i })).toBeVisible({ timeout: 60000 });
     await this.waitForLightningIdle();
@@ -534,4 +649,71 @@ export class SalesforcePortalPage {
       await expect(lightningSpinner).toBeHidden({ timeout: 60000 });
     }
   }
+  async fillLightningComboboxDirect(label: string, value: string) {
+  const field = this.page.getByRole('combobox', { name: label });
+
+  await expect(field).toBeVisible({ timeout: 15000 });
+
+  // Click and clear
+  await field.click();
+  await field.fill('');
+
+  // Type value
+  await field.fill(value);
+
+  // Select using keyboard (IMPORTANT)
+  await field.press('ArrowDown');
+  await field.press('Enter');
+
+  await this.waitForLightningIdle();
+}
+async fillCancelPolicyStep1Direct(data: {
+  category: string;
+  instigatedBy: string;
+  reason: string;
+  notes: string;
+  cancellationDate?: string;
+}) {
+  // Category
+  await this.fillLightningComboboxDirect('Cancellation Category', data.category);
+
+  // Date (if editable)
+  const dateField = this.page.getByRole('textbox', { name: 'Cancellation Effective Date' });
+
+  if (await dateField.isVisible().catch(() => false)) {
+    if (await dateField.isEnabled().catch(() => false)) {
+      const dateValue =
+        data.cancellationDate ??
+        new Date().toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        });
+
+      await dateField.fill(dateValue);
+      await dateField.press('Tab');
+    }
+  }
+
+  await this.waitForLightningIdle();
+
+  // Instigated By
+  await this.fillLightningComboboxDirect('Cancellation Instigated By', data.instigatedBy);
+
+  // Reason
+  await this.fillLightningComboboxDirect('Cancellation Reason', data.reason);
+
+  // Notes
+  await this.page
+    .getByRole('textbox', { name: 'Cancellation Notes/Narrative' })
+    .fill(data.notes);
+
+  await this.waitForLightningIdle();
+
+  // Next
+  await this.page.getByRole('button', { name: 'Next' }).click();
+
+  await expect(this.page.getByRole('heading', { name: 'Enter Premiums' }))
+    .toBeVisible({ timeout: 60000 });
+}
 }
