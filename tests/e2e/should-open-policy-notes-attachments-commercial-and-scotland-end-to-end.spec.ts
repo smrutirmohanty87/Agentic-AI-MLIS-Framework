@@ -21,7 +21,7 @@ import {
   ScotlandCommercialStatementsOfFactPage,
   ScotlandCommercialSummaryPage,
 } from '../../src/pages/mlis-portal-scotland-commercial';
-import { SalesforcePortalPage } from '../../src/pages/salesforce-cancellation';
+import { SalesforceNotesAttachmentsEwPage } from '../../src/pages/salesforce-notes-attachments-ew';
 
 test.describe('Policy Notes & Attachments Exploration - Commercial', () => {
   test('should create Commercial EW policy, open in Salesforce, and open/close Notes & Attachments docs', async ({ page }) => {
@@ -39,7 +39,7 @@ test.describe('Policy Notes & Attachments Exploration - Commercial', () => {
     const summary = new CommercialSummaryPage(page);
     const orderDialog = new CommercialOrderDialog(page);
     const policyIssued = new CommercialPolicyIssuedPage(page);
-    const salesforce = new SalesforcePortalPage(page);
+    const salesforce = new SalesforceNotesAttachmentsEwPage(page);
 
     // Step 1: Login to Broker Portal
     await brokerLogin.goto();
@@ -106,7 +106,7 @@ test.describe('Policy Notes & Attachments Exploration - Commercial', () => {
     const summary = new ScotlandCommercialSummaryPage(page);
     const orderDialog = new ScotlandCommercialOrderDialog(page);
     const policyIssued = new ScotlandCommercialPolicyIssuedPage(page);
-    const salesforce = new SalesforcePortalPage(page);
+    const salesforce = new SalesforceNotesAttachmentsEwPage(page);
 
     // Step 1: Login to Broker Portal
     await brokerLogin.goto();

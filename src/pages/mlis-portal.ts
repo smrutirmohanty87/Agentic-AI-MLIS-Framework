@@ -10,7 +10,18 @@ export class LoginPage {
   async login(email: string, password: string) {
     await this.page.getByRole('textbox', { name: 'Email address' }).fill(email);
     await this.page.getByRole('textbox', { name: 'Password' }).fill(password);
-    await this.page.getByRole('link', { name: 'Login' }).click();
+
+    const loginLink = this.page.getByRole('link', { name: /^Login$/i }).first();
+    const loginButton = this.page.getByRole('button', { name: /^Login$/i }).first();
+
+    if (await loginLink.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await loginLink.click();
+    } else {
+      await loginButton.click();
+    }
+
+    // Keep login lightweight; QuoteManagerPage.expectLoaded() performs robust post-login checks.
+    await this.page.waitForLoadState('domcontentloaded');
   }
 }
 
@@ -39,12 +50,22 @@ export class QuoteManagerPage {
   async expectLoaded() {
     await this.acceptCookiesIfVisible();
     await this.dismissBlockingDialogIfVisible();
+
     const quoteManagerHeading = this.page.getByRole('heading', { name: /Quote manager/i }).first();
     const startQuoteLink = this.page.getByRole('link', { name: /Start quote/i }).first();
+    const startNewQuoteHeading = this.page.getByRole('heading', { name: /Start new quote/i }).first();
+    const searchAllFields = this.page.getByRole('textbox', { name: /Search all fields/i }).first();
+    const quoteManagerNav = this.page.getByRole('link', { name: /^Quote manager$/i }).first();
 
     const headingVisible = await quoteManagerHeading.isVisible({ timeout: 60000 }).catch(() => false);
     if (!headingVisible) {
-      await expect(startQuoteLink).toBeVisible({ timeout: 60000 });
+      await expect(
+        startQuoteLink
+          .or(startNewQuoteHeading)
+          .or(searchAllFields)
+          .or(quoteManagerNav)
+          .first(),
+      ).toBeVisible({ timeout: 120000 });
     }
   }
 

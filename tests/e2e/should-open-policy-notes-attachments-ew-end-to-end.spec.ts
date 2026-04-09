@@ -10,7 +10,7 @@ import {
   StatementsOfFactPage,
   SummaryPage,
 } from '../../src/pages/mlis-portal';
-import { SalesforcePortalPage } from '../../src/pages/salesforce-cancellation';
+import { SalesforceNotesAttachmentsEwPage } from '../../src/pages/salesforce-notes-attachments-ew';
 
 test.describe('Policy Notes & Attachments Exploration E2E', () => {
   test('should create EW policy, open in Salesforce, and open/close Notes & Attachments docs', async ({ page }) => {
@@ -29,7 +29,7 @@ test.describe('Policy Notes & Attachments Exploration E2E', () => {
     const orderDialog = new OrderDialog(page);
     const policyIssued = new PolicyIssuedPage(page);
 
-    const salesforce = new SalesforcePortalPage(page);
+    const salesforce = new SalesforceNotesAttachmentsEwPage(page);
 
     // Step 1: Login to Broker Portal
     await brokerLogin.goto();
