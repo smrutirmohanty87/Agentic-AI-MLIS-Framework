@@ -2,10 +2,7 @@
 // seed: tests/seed.spec.ts
 
 import { expect, Locator, Page, test } from '@playwright/test';
-
-const SF_LOGIN_URL = 'https://dualgroup--sitp.sandbox.my.salesforce.com/';
-const SF_USERNAME = 't-0116-mlis-uw-enhance-auto-provar@mlis.sit2';
-const SF_PASSWORD = 'SIT2-t0116-02#';
+import { getSalesforceCredentials, getSalesforceLightningUrl } from '../../src/config/env';
 
 async function waitForLightningIdle(page: Page) {
 	await page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {});
@@ -21,8 +18,6 @@ async function waitForLightningIdle(page: Page) {
 	for (const busy of knownBusyLocators) {
 		await busy.first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
 	}
-
-	await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 }
 
 async function clickWhenReady(locator: Locator, page: Page) {
@@ -100,17 +95,18 @@ async function selectComboboxOption(page: Page, label: string, optionText: strin
 	await waitForLightningIdle(page);
 }
 
-test.describe('End-to-End Complete Flow - Residential E&W Multiple Products', () => {
-	test('should complete full residential england and wales policy creation with multiple products', async ({ page }) => {
+test.describe('@sanity | E2E | Salesforce Quote Journey | Residential E&W Multiple Products', () => {
+	test('TC_SAN_007 | Complete full residential England & Wales quote journey with multiple products', async ({ page }) => {
 		test.setTimeout(900000);
 		test.slow();
 
 		const caseRef = `SF-QJ-RES-MULTI-${Date.now()}`;
+		const sfCreds = getSalesforceCredentials();
 
 		// 1. Login to Salesforce.
-		await page.goto(SF_LOGIN_URL, { waitUntil: 'domcontentloaded' });
-		await page.getByRole('textbox', { name: /username/i }).fill(SF_USERNAME);
-		await page.getByRole('textbox', { name: /password/i }).fill(SF_PASSWORD);
+		await page.goto(getSalesforceLightningUrl(), { waitUntil: 'domcontentloaded' });
+		await page.getByRole('textbox', { name: /username/i }).fill(sfCreds.username);
+		await page.getByRole('textbox', { name: /password/i }).fill(sfCreds.password);
 		await clickWhenReady(page.getByRole('button', { name: /log in to sandbox|log in/i }).first(), page);
 		await expect(page.getByRole('link', { name: 'Quote Journey' })).toBeVisible({ timeout: 120000 });
 

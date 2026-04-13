@@ -3,39 +3,41 @@
 
 import { test } from '@playwright/test';
 import {
-  NiLoginPage,
-  NiQuoteManagerPage,
-  NiProductSelectionPage,
-  NiStatementsOfFactPage,
-  NiQuotesPage,
-  NiFinalPolicyDetailsPage,
-  NiSummaryPage,
-  NiOrderDialog,
-  NiPolicyIssuedPage,
-} from '../../src/pages/mlis-portal-ni';
+  NiCommercialLoginPage,
+  NiCommercialQuoteManagerPage,
+  NiCommercialProductSelectionPage,
+  NiCommercialStatementsOfFactPage,
+  NiCommercialQuotesPage,
+  NiCommercialFinalPolicyDetailsPage,
+  NiCommercialSummaryPage,
+  NiCommercialOrderDialog,
+  NiCommercialPolicyIssuedPage,
+} from '../../src/pages/mlis-portal-ni-commercial';
+import { getBrokerCredentials } from '../../src/config/env';
 
-test.describe('End-to-End Policy Creation', () => {
-  test('should create Residential NI policy with single product end-to-end', async ({ page }) => {
+test.describe('@regression | E2E | Commercial | Northern Ireland', () => {
+  test('TC_REG_002 | Create Commercial Northern Ireland policy (single product)', async ({ page }) => {
     test.setTimeout(120000);
-    const caseRef = `E2E-NI-${Date.now()}`;
+    const caseRef = `E2E-COMM-NI-${Date.now()}`;
 
-    const loginPage = new NiLoginPage(page);
-    const quoteManager = new NiQuoteManagerPage(page);
-    const productSelection = new NiProductSelectionPage(page);
-    const statements = new NiStatementsOfFactPage(page);
-    const quotes = new NiQuotesPage(page);
-    const finalDetails = new NiFinalPolicyDetailsPage(page);
-    const summary = new NiSummaryPage(page);
-    const orderDialog = new NiOrderDialog(page);
-    const policyIssued = new NiPolicyIssuedPage(page);
+    const loginPage = new NiCommercialLoginPage(page);
+    const quoteManager = new NiCommercialQuoteManagerPage(page);
+    const productSelection = new NiCommercialProductSelectionPage(page);
+    const statements = new NiCommercialStatementsOfFactPage(page);
+    const quotes = new NiCommercialQuotesPage(page);
+    const finalDetails = new NiCommercialFinalPolicyDetailsPage(page);
+    const summary = new NiCommercialSummaryPage(page);
+    const orderDialog = new NiCommercialOrderDialog(page);
+    const policyIssued = new NiCommercialPolicyIssuedPage(page);
 
     // 1) Login with valid credentials and accept cookie consent. Verify Quote Manager dashboard loads.
     await loginPage.goto();
-    await loginPage.login('girish.kulkarni+sit2t131a1@dualgroup.com', 'SIT2-t0131-01#');
+    const brokerCreds = getBrokerCredentials();
+    await loginPage.login(brokerCreds.username, brokerCreds.password);
     await quoteManager.expectLoaded();
 
-    // 2) Click 'Northern Ireland Start quote' under Residential. Verify Step 1 Product Selection loads.
-    await quoteManager.startResidentialNorthernIrelandQuote();
+    // 2) Click 'Northern Ireland Start quote' under Commercial. Verify Step 1 Product Selection loads.
+    await quoteManager.startCommercialNorthernIrelandQuote();
     await productSelection.expectLoaded();
 
     // 3) Enter case reference and limit of indemnity 500000. Verify fields are populated.

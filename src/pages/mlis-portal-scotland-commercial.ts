@@ -1,10 +1,11 @@
 import { expect, Page } from '@playwright/test';
+import { getMlisPortalUrl } from '../config/env';
 
 export class ScotlandCommercialLoginPage {
   constructor(private readonly page: Page) {}
 
   async goto() {
-    await this.page.goto('https://dualgroup--sitp.sandbox.my.site.com/mlisportal/broker-zone');
+    await this.page.goto(getMlisPortalUrl());
   }
 
   async login(email: string, password: string) {

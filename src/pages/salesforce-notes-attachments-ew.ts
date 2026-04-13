@@ -1,4 +1,5 @@
 import { expect, Page } from '@playwright/test';
+import { getSalesforceLightningUrl } from '../config/env';
 
 export class SalesforceNotesAttachmentsEwPage {
   constructor(private readonly page: Page) {}
@@ -18,7 +19,7 @@ export class SalesforceNotesAttachmentsEwPage {
   }
 
   async goto() {
-    await this.page.goto('https://dualgroup--sitp.sandbox.lightning.force.com/');
+    await this.page.goto(getSalesforceLightningUrl());
   }
 
   async login(username: string, password: string) {

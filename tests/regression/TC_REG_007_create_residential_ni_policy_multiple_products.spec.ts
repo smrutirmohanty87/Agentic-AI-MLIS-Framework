@@ -13,9 +13,10 @@ import {
   NiOrderDialog,
   NiPolicyIssuedPage,
 } from '../../src/pages/mlis-portal-ni';
+import { getBrokerCredentials } from '../../src/config/env';
 
-test.describe('End-to-End Policy Creation', () => {
-  test('should create Residential NI policy with multiple products end-to-end', async ({ page }) => {
+test.describe('@regression | E2E | Residential | Northern Ireland', () => {
+  test('TC_REG_007 | Create Residential Northern Ireland policy (multiple products)', async ({ page }) => {
     test.setTimeout(120000);
     const caseRef = `E2E-NI-MULTI-${Date.now()}`;
 
@@ -31,7 +32,8 @@ test.describe('End-to-End Policy Creation', () => {
 
     // 1) Login with valid credentials and accept cookie consent. Verify Quote Manager dashboard loads.
     await loginPage.goto();
-    await loginPage.login('girish.kulkarni+sit2t131a1@dualgroup.com', 'SIT2-t0131-01#');
+    const brokerCreds = getBrokerCredentials();
+    await loginPage.login(brokerCreds.username, brokerCreds.password);
     await quoteManager.expectLoaded();
 
     // 2) Click 'Northern Ireland Start quote' under Residential. Verify Step 1 Product Selection loads.

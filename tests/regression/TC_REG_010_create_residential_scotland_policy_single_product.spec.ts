@@ -3,46 +3,48 @@
 
 import { test } from '@playwright/test';
 import {
-  CommercialLoginPage,
-  CommercialQuoteManagerPage,
-  CommercialProductSelectionPage,
-  CommercialStatementsOfFactPage,
-  CommercialQuotesPage,
-  CommercialFinalPolicyDetailsPage,
-  CommercialSummaryPage,
-  CommercialOrderDialog,
-  CommercialPolicyIssuedPage,
-} from '../../src/pages/mlis-portal-commercial';
+  ScotlandLoginPage,
+  ScotlandQuoteManagerPage,
+  ScotlandProductSelectionPage,
+  ScotlandStatementsOfFactPage,
+  ScotlandQuotesPage,
+  ScotlandFinalPolicyDetailsPage,
+  ScotlandSummaryPage,
+  ScotlandOrderDialog,
+  ScotlandPolicyIssuedPage,
+} from '../../src/pages/mlis-portal-scotland';
+import { getBrokerCredentials } from '../../src/config/env';
 
-test.describe('End-to-End Policy Creation', () => {
-  test('should create Commercial E&W policy with multiple products end-to-end', async ({ page }) => {
+test.describe('@regression | E2E | Residential | Scotland', () => {
+  test('TC_REG_010 | Create Residential Scotland policy (single product)', async ({ page }) => {
     test.setTimeout(120000);
-    const caseRef = `E2E-COMM-MULTI-${Date.now()}`;
+    const caseRef = `E2E-SCOT-${Date.now()}`;
 
-    const loginPage = new CommercialLoginPage(page);
-    const quoteManager = new CommercialQuoteManagerPage(page);
-    const productSelection = new CommercialProductSelectionPage(page);
-    const statements = new CommercialStatementsOfFactPage(page);
-    const quotes = new CommercialQuotesPage(page);
-    const finalDetails = new CommercialFinalPolicyDetailsPage(page);
-    const summary = new CommercialSummaryPage(page);
-    const orderDialog = new CommercialOrderDialog(page);
-    const policyIssued = new CommercialPolicyIssuedPage(page);
+    const loginPage = new ScotlandLoginPage(page);
+    const quoteManager = new ScotlandQuoteManagerPage(page);
+    const productSelection = new ScotlandProductSelectionPage(page);
+    const statements = new ScotlandStatementsOfFactPage(page);
+    const quotes = new ScotlandQuotesPage(page);
+    const finalDetails = new ScotlandFinalPolicyDetailsPage(page);
+    const summary = new ScotlandSummaryPage(page);
+    const orderDialog = new ScotlandOrderDialog(page);
+    const policyIssued = new ScotlandPolicyIssuedPage(page);
 
     // 1) Login with valid credentials and accept cookie consent. Verify Quote Manager dashboard loads.
     await loginPage.goto();
-    await loginPage.login('girish.kulkarni+sit2t131a1@dualgroup.com', 'SIT2-t0131-01#');
+    const brokerCreds = getBrokerCredentials();
+    await loginPage.login(brokerCreds.username, brokerCreds.password);
     await quoteManager.expectLoaded();
 
-    // 2) Click 'England & Wales Start quote' under Commercial. Verify Step 1 Product Selection loads.
-    await quoteManager.startCommercialEnglandWalesQuote();
+    // 2) Click 'Scotland Start quote' under Residential. Verify Step 1 Product Selection loads.
+    await quoteManager.startResidentialScotlandQuote();
     await productSelection.expectLoaded();
 
     // 3) Enter case reference and limit of indemnity 500000. Verify fields are populated.
     await productSelection.fillCaseReferenceAndLimit(caseRef, '500000');
 
-    // 4) Select 4 products and click Proceed. Verify Step 2 Statements of Fact loads.
-    await productSelection.selectProductsByIndex([1, 2, 3, 4]);
+    // 4) Select a product and click Proceed. Verify Step 2 Statements of Fact loads.
+    await productSelection.selectProductsByIndex([1]);
     await productSelection.proceed();
     await statements.expectLoaded();
 

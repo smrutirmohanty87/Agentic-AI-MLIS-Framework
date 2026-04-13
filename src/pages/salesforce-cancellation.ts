@@ -1,7 +1,17 @@
 import { expect, Page } from '@playwright/test';
+import { getSalesforceLightningUrl } from '../config/env';
 
 export class SalesforcePortalPage {
   constructor(private readonly page: Page) {}
+
+  // Straight-through helpers (no retries/fallbacks). These are used by the
+  // cancellation specs that must follow a deterministic UI path.
+  private async clickStraight(target: ReturnType<Page['locator']>, timeout = 30000) {
+    await this.waitForLightningIdle();
+    await expect(target).toBeVisible({ timeout });
+    await target.click({ timeout });
+    await this.waitForLightningIdle();
+  }
 
   private async clickWhenUiReady(target: ReturnType<Page['locator']>) {
     for (let attempt = 1; attempt <= 4; attempt += 1) {
@@ -90,7 +100,7 @@ export class SalesforcePortalPage {
   }
 
   async goto() {
-    await this.page.goto('https://dualgroup--sitp.sandbox.lightning.force.com/');
+    await this.page.goto(getSalesforceLightningUrl());
   }
 
   async login(username: string, password: string) {
@@ -166,6 +176,26 @@ export class SalesforcePortalPage {
     // Wait for submission record page to load
     await this.waitForLightningIdle();
     await expect(this.page.getByRole('tab', { name: 'Related' }).first()).toBeVisible({ timeout: 120000 });
+  }
+
+  /** Straight-through: Global Search → open first Submission result (no fallback selectors). */
+  async searchPolicyInGlobalSearchStraight(policyReference: string) {
+    const globalSearchButton = this.page.getByRole('button', { name: /^Search$/ }).first();
+    await this.clickStraight(globalSearchButton, 60000);
+
+    const globalSearchInput = this.page.locator('input[placeholder="Search..."]:visible').first();
+    await expect(globalSearchInput).toBeVisible({ timeout: 60000 });
+    await globalSearchInput.fill(policyReference);
+    await globalSearchInput.press('Enter');
+
+    await this.waitForLightningIdle();
+    await expect(this.page.getByRole('heading', { name: 'Submissions' }).first()).toBeVisible({ timeout: 120000 });
+
+    const submissionLink = this.page.getByRole('link', { name: policyReference }).first();
+    await this.clickStraight(submissionLink, 120000);
+
+    await expect(this.page.getByRole('tab', { name: 'Related' }).first()).toBeVisible({ timeout: 120000 });
+    await this.waitForLightningIdle();
   }
 
   async searchAndOpenSubmission(policyReference: string) {
@@ -324,6 +354,86 @@ export class SalesforcePortalPage {
     await expect(this.page.getByRole('button', { name: 'Create Claim' })).toBeVisible({ timeout: 60000 });
     await expect(this.page.getByRole('button', { name: 'New Note' })).toBeVisible({ timeout: 60000 });
     await expect(this.page.getByRole('button', { name: 'Show more actions' })).toBeVisible({ timeout: 60000 });
+  }
+
+  /**
+   * Straight-through: Related tab → scroll to Insurance Policies → open the first Insurance Policy.
+   * Assumes the record already exists (no reload, no scroll loops, no fallback selectors).
+   */
+  async openInsurancePolicyFromRelatedStraight() {
+    const relatedTab = this.page.getByRole('tab', { name: 'Related' }).first();
+    await this.clickStraight(relatedTab, 60000);
+
+    const insurancePoliciesLink = this.page
+      .locator('article:visible')
+      .getByRole('link', { name: /Insurance Policies/i })
+      .first();
+
+    await expect(insurancePoliciesLink).toBeVisible({ timeout: 120000 });
+    await insurancePoliciesLink.scrollIntoViewIfNeeded();
+    await this.clickStraight(insurancePoliciesLink, 60000);
+
+    const firstRowLink = this.page.locator('[role="rowheader"] a:visible').first();
+    await this.clickStraight(firstRowLink, 120000);
+
+    await this.expectInsurancePolicyRecordLoaded();
+  }
+
+  /** Straight-through: open Cancel Policy wizard from Show more actions. */
+  async openCancelPolicyWizardStraight() {
+    await this.expectInsurancePolicyRecordLoaded();
+    const showMoreActions = this.page.getByRole('button', { name: 'Show more actions' });
+    await this.clickStraight(showMoreActions, 60000);
+
+    const cancelPolicy = this.page.getByRole('menuitem', { name: 'Cancel Policy' });
+    await this.clickStraight(cancelPolicy, 60000);
+
+    await expect(this.page.getByRole('heading', { name: 'Cancel Policy' })).toBeVisible({ timeout: 60000 });
+    await expect(this.page.getByRole('textbox', { name: 'Effective Date' })).toHaveAttribute('readonly', '', { timeout: 60000 });
+    await this.waitForLightningIdle();
+  }
+
+  /** Straight-through: Step 1 for Cancel from Inception. */
+  async completeCancelFromInceptionStep1Straight(notes: string) {
+    await this.fillLightningComboboxDirect('*Cancellation Category', 'Cancel the Policy from Inception');
+
+    const cancellationDate = this.page.getByRole('textbox', { name: 'Cancellation Effective Date' });
+    await expect(cancellationDate).toBeVisible({ timeout: 60000 });
+    await expect(cancellationDate).toHaveAttribute('readonly', '', { timeout: 60000 });
+    await expect(this.page.getByRole('textbox', { name: 'Cooling Period Display' })).toHaveValue('Inside Cooling-Off Period', {
+      timeout: 60000,
+    });
+
+    await this.fillLightningComboboxDirect('*Cancellation Instigated By', 'Customer');
+    await this.fillLightningComboboxDirect('*Cancellation Reason', 'Cover No Longer Required');
+
+    await this.page.getByRole('textbox', { name: '*Cancellation Notes/Narrative' }).fill(notes);
+    await this.waitForLightningIdle();
+
+    await this.page.getByRole('button', { name: 'Next' }).click();
+    await this.waitForLightningIdle();
+    await expect(this.page.getByRole('heading', { name: 'Enter Premiums' })).toBeVisible({ timeout: 60000 });
+  }
+
+  /** Straight-through: Step 2 (full premium return) + tax calculation. */
+  async completePremiumStepWithTaxCalculationStraight() {
+    await this.fillLightningComboboxDirect('Do you want to return the full premium?', 'Yes');
+
+    this.page.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
+
+    await this.page.getByRole('button', { name: 'Calculate Tax' }).click();
+    await this.waitForLightningIdle();
+
+    // Some orgs show a Lightning OK dialog instead of a browser dialog.
+    const okButton = this.page.getByRole('button', { name: /^OK$/i }).first();
+    if (await okButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await okButton.click();
+    }
+
+    await expect(this.page.getByRole('heading', { name: 'Tax Details' })).toBeVisible({ timeout: 60000 });
+    await this.waitForLightningIdle();
   }
 
   async expectInsurancePolicyRecordLoaded() {

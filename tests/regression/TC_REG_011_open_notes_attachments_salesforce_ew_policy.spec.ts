@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   FinalPolicyDetailsPage,
   LoginPage,
@@ -10,17 +10,15 @@ import {
   StatementsOfFactPage,
   SummaryPage,
 } from '../../src/pages/mlis-portal';
-import { BrokerPortalPage } from '../../src/pages/broker-portal-policy';
-import { SalesforcePortalPage } from '../../src/pages/salesforce-cancellation';
+import { SalesforceNotesAttachmentsEwPage } from '../../src/pages/salesforce-notes-attachments-ew';
 import { getBrokerCredentials, getSalesforceCredentials } from '../../src/config/env';
 
-test.describe('Cancellation from Inception - Full Premium Return', () => {
-  test.describe.configure({ retries: 0 });
-  test('should cancel policy from inception with full premium return', async ({ page }) => {
-    test.setTimeout(900000);
+test.describe('@regression | E2E | Notes & Attachments | England & Wales', () => {
+  test('TC_REG_011 | Open Notes & Attachments in Salesforce (England & Wales policy)', async ({ page }) => {
+    test.setTimeout(1200000);
     test.slow();
 
-    const caseRef = `E2E-CAN-INFULL-${Date.now()}`;
+    const caseRef = `E2E-NOTES-EW-${Date.now()}`;
 
     const brokerLogin = new LoginPage(page);
     const quoteManager = new QuoteManagerPage(page);
@@ -32,16 +30,16 @@ test.describe('Cancellation from Inception - Full Premium Return', () => {
     const orderDialog = new OrderDialog(page);
     const policyIssued = new PolicyIssuedPage(page);
 
-    const brokerPortal = new BrokerPortalPage(page);
-    const salesforce = new SalesforcePortalPage(page);
+    const salesforce = new SalesforceNotesAttachmentsEwPage(page);
 
-    // Create a fresh policy in Broker Portal so cancellation runs against a known live policy.
+    // Step 1: Login to Broker Portal
     await brokerLogin.goto();
     const brokerCreds = getBrokerCredentials();
     await brokerLogin.login(brokerCreds.username, brokerCreds.password);
     await quoteManager.expectLoaded();
     await quoteManager.acceptCookiesIfVisible();
 
+    // Step 2: Create a policy (England & Wales)
     await quoteManager.startResidentialEnglandWalesQuote();
     await productSelection.expectLoaded();
     await productSelection.fillCaseReferenceAndLimit(caseRef, '500000');
@@ -64,39 +62,24 @@ test.describe('Cancellation from Inception - Full Premium Return', () => {
     await summary.proceedToOrder();
     await orderDialog.selectTodayAndOrder();
 
+    // Step 3: Capture policy number
     await policyIssued.expectPolicyIssued();
     const policyNumber = await policyIssued.getIssuedPolicyNumber();
-    await policyIssued.backToQuoteManager();
-
-    // Verify policy is live before cancelling.
-    await brokerPortal.expectQuoteManagerLoaded();
-    await brokerPortal.searchPolicy(policyNumber);
-    await brokerPortal.expectPolicyStatus(policyNumber, 'Live');
 
     // Step 4: Login to Salesforce Portal
     await salesforce.goto();
     const sfCreds = getSalesforceCredentials();
     await salesforce.login(sfCreds.username, sfCreds.password);
 
-    // Step 5-6: Global Search → Search & open policy record
-    await salesforce.searchPolicyInGlobalSearchStraight(policyNumber);
+    // Step 5-6: Global Search and open policy from grid by policy number
+    await salesforce.searchPolicyAndOpenFromGlobalSearchGrid(policyNumber);
 
-    // Step 7: Navigate to Related tab
-    await salesforce.openRelatedTab();
+    // Step 7-8: Open Related tab and Notes & Attachments
+    await salesforce.openNotesAndAttachmentsFromRelatedTab();
 
-    // Step 8-9: Scroll to Insurance Policy section & open the record
-    await salesforce.openInsurancePolicyFromRelatedStraight();
+    // Step 9-10: Open each document/link and close; assert still on Notes & Attachments page
+    await salesforce.openEachNoteAttachmentAndClose();
 
-    // Step 10: Click Cancel Policy from Show more actions
-    await salesforce.openCancelPolicyWizardStraight();
-
-    // Step 11-13: Complete cancellation flow (from inception, full return)
-    await salesforce.completeCancelFromInceptionStep1Straight(
-      `Policy cancellation from inception - full premium return test (${policyNumber})`,
-    );
-
-    await salesforce.completePremiumStepWithTaxCalculationStraight();
-    await salesforce.submitCancellation();
-    await salesforce.expectPolicyStatusCancelled();
+    await expect(page.getByRole('heading', { name: /Notes\s*&\s*Attachments/i }).first()).toBeVisible({ timeout: 120000 });
   });
 });

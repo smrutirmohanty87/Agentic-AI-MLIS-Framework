@@ -11,9 +11,10 @@ import {
   CommercialReferralSubmitPage,
   CommercialReferralSubmittedPage,
 } from '../../src/pages/mlis-portal-commercial';
+import { getBrokerCredentials } from '../../src/config/env';
 
-test.describe('End-to-End Policy Creation', () => {
-  test('should create Commercial E&W policy with single product and submit via referral path end-to-end', async ({ page }) => {
+test.describe('@sanity | E2E | Commercial | England & Wales', () => {
+  test('TC_SAN_004 | Create Commercial England & Wales policy (single product) via referral', async ({ page }) => {
     test.setTimeout(180000);
     const caseRef = `E2E-COMM-REF-${Date.now()}`;
 
@@ -27,7 +28,8 @@ test.describe('End-to-End Policy Creation', () => {
 
     // 1) Login with valid credentials and accept cookie consent. Verify Quote Manager dashboard loads.
     await loginPage.goto();
-    await loginPage.login('girish.kulkarni+sit2t131a1@dualgroup.com', 'SIT2-t0131-01#');
+    const brokerCreds = getBrokerCredentials();
+    await loginPage.login(brokerCreds.username, brokerCreds.password);
     await quoteManager.expectLoaded();
 
     // 2) Click 'England & Wales Start quote' under Commercial. Verify Step 1 Product Selection loads.

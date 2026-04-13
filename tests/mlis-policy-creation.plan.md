@@ -570,7 +570,7 @@ Comprehensive test plan for the MLIS (My Legal Indemnity Shop) Portal policy cre
 
 #### 10.1. should create Residential E&W policy with single product end-to-end
 
-**File:** `tests/e2e/should-create-single-product-policy.spec.ts`
+**File:** `tests/regression/TC_REG_006_create_residential_ew_policy_single_product.spec.ts`
 
 **Steps:**
   1. Login with valid credentials and accept cookie consent
@@ -594,7 +594,7 @@ Comprehensive test plan for the MLIS (My Legal Indemnity Shop) Portal policy cre
 
 #### 10.2. should create Residential E&W policy with multiple products
 
-**File:** `tests/e2e/should-create-multi-product-policy.spec.ts`
+**File:** `tests/regression/TC_REG_005_create_residential_ew_policy_multiple_products.spec.ts`
 
 **Steps:**
   1. Login and start Residential E&W quote
@@ -614,7 +614,7 @@ Comprehensive test plan for the MLIS (My Legal Indemnity Shop) Portal policy cre
 
 #### 10.3. should save and resume incomplete quote
 
-**File:** `tests/e2e/should-save-and-resume-quote.spec.ts`
+**File:** (not implemented in this repo)
 
 **Steps:**
   1. Login and start Residential E&W quote

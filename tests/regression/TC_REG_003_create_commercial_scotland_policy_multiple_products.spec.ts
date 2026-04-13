@@ -13,11 +13,12 @@ import {
   ScotlandCommercialOrderDialog,
   ScotlandCommercialPolicyIssuedPage,
 } from '../../src/pages/mlis-portal-scotland-commercial';
+import { getBrokerCredentials } from '../../src/config/env';
 
-test.describe('End-to-End Policy Creation', () => {
-  test('should create Commercial Scotland policy with single product end-to-end', async ({ page }) => {
+test.describe('@regression | E2E | Commercial | Scotland', () => {
+  test('TC_REG_003 | Create Commercial Scotland policy (multiple products)', async ({ page }) => {
     test.setTimeout(120000);
-    const caseRef = `E2E-COMM-SCOT-${Date.now()}`;
+    const caseRef = `E2E-COMM-SCOT-MULTI-${Date.now()}`;
 
     const loginPage = new ScotlandCommercialLoginPage(page);
     const quoteManager = new ScotlandCommercialQuoteManagerPage(page);
@@ -31,7 +32,8 @@ test.describe('End-to-End Policy Creation', () => {
 
     // 1) Login with valid credentials and accept cookie consent. Verify Quote Manager dashboard loads.
     await loginPage.goto();
-    await loginPage.login('girish.kulkarni+sit2t131a1@dualgroup.com', 'SIT2-t0131-01#');
+    const brokerCreds = getBrokerCredentials();
+    await loginPage.login(brokerCreds.username, brokerCreds.password);
     await quoteManager.expectLoaded();
 
     // 2) Click 'Scotland Start quote' under Commercial. Verify Step 1 Product Selection loads.
@@ -41,8 +43,8 @@ test.describe('End-to-End Policy Creation', () => {
     // 3) Enter case reference and limit of indemnity 500000. Verify fields are populated.
     await productSelection.fillCaseReferenceAndLimit(caseRef, '500000');
 
-    // 4) Select a product and click Proceed. Verify Step 2 Statements of Fact loads.
-    await productSelection.selectProductsByIndex([1]);
+    // 4) Select 4 products and click Proceed. Verify Step 2 Statements of Fact loads.
+    await productSelection.selectProductsByIndex([1, 2, 3, 4]);
     await productSelection.proceed();
     await statements.expectLoaded();
 
