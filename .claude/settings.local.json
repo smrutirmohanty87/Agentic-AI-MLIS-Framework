@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:localhost)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx playwright:*)",
+      "Bash([ ! -f \"D:/Agentic-AI-MLIS-Framework-main/Agentic-AI-MLIS-Framework-main/test-results/mta-dialog-1.png\" ])",
+      "Bash(ls -la \"D:/Agentic-AI-MLIS-Framework-main/Agentic-AI-MLIS-Framework-main/test-results/mta-dialog-\"*)",
+      "Bash(ls -la \"D:/Agentic-AI-MLIS-Framework-main/Agentic-AI-MLIS-Framework-main/test-results/mta\"*)"
+    ]
+  }
+}
