@@ -12,7 +12,7 @@ This test plan covers the complete Policy Cancellation workflow for the MLIS (Mo
 
 #### 1.1. should cancel policy from inception with full premium return
 
-**File:** `tests/cancellation/cancel-inception-full-return.spec.ts`
+**File:** `tests/sanity/TC_SAN_008_cancel_from_inception_full_premium_return.spec.ts`
 
 **Steps:**
   1. Navigate to Salesforce Portal and log in with underwriter credentials

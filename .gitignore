@@ -7,8 +7,5 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 
-# Generated dashboard report artifacts
-/reports/dashboard/
-
 # Local environment variables (credentials/URLs)
 .env

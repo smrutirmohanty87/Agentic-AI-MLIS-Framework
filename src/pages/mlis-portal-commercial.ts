@@ -274,9 +274,25 @@ export class CommercialFinalPolicyDetailsPage {
   }
 
   async fillRequiredDetails() {
-    const requiredInputs = this.page.locator('input[required]');
+    let requiredInputs = this.page.locator('input[required]');
+
     await requiredInputs.nth(0).fill('E2E Test Client');
-    await requiredInputs.nth(1).fill('EC3A 2BJ');
+
+    const postcodeInput = requiredInputs.nth(1);
+    await postcodeInput.fill('EC3A 2BJ');
+    await postcodeInput.press('Tab').catch(() => {});
+
+    const enterManually = this.page
+      .getByRole('button', { name: /enter manually/i })
+      .or(this.page.getByRole('link', { name: /enter manually/i }))
+      .first();
+
+    if (await enterManually.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await enterManually.click();
+    }
+
+    requiredInputs = this.page.locator('input[required]');
+    await expect(requiredInputs.nth(2)).toBeVisible({ timeout: 20000 });
     await requiredInputs.nth(2).fill('52-54 Leadenhall Street');
     await requiredInputs.nth(3).fill('London');
   }

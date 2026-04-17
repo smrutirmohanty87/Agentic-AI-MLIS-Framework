@@ -35,30 +35,32 @@ export class SalesforceNotesAttachmentsEwPage {
 
   // Step 5-6: Global Search -> Search policy number -> open policy/submission link from grid.
   async searchPolicyAndOpenFromGlobalSearchGrid(policyReference: string) {
+    await this.waitForLightningIdle();
+
+    const globalSearchButton = this.page.getByRole('button', { name: /^Search$/ }).first();
     const searchLauncher = this.page.locator('//*[@id="oneHeader"]/div[2]/div[2]/div/div/button').first();
-    await expect(searchLauncher).toBeVisible({ timeout: 120000 });
-    await searchLauncher.click();
+
+    if (await globalSearchButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await globalSearchButton.click();
+    } else if (await searchLauncher.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await searchLauncher.click();
+    }
 
     const dialogSearchInput = this.page
       .locator('[role="dialog"] input[type="search"]:visible, [role="dialog"] input[placeholder*="Search"]:visible')
       .first();
     const headerSearchInput = this.page
-      .locator('[role="search"] input:visible, input[placeholder="Search..."]:visible')
+      .locator('#oneHeader [role="search"] input:visible, #oneHeader input[type="search"]:visible, #oneHeader input[placeholder="Search..."]:visible')
       .first();
-    const genericSearchbox = this.page.getByRole('searchbox').first();
 
-    let activeSearchInput = dialogSearchInput;
-    if (!(await dialogSearchInput.isVisible({ timeout: 5000 }).catch(() => false))) {
-      if (await headerSearchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        activeSearchInput = headerSearchInput;
-      } else {
-        await expect(genericSearchbox).toBeVisible({ timeout: 120000 });
-        activeSearchInput = genericSearchbox;
-      }
+    let activeSearchInput = headerSearchInput;
+    if (!(await headerSearchInput.isVisible({ timeout: 5000 }).catch(() => false))) {
+      await expect(dialogSearchInput).toBeVisible({ timeout: 120000 });
+      activeSearchInput = dialogSearchInput;
     }
 
     await activeSearchInput.fill(policyReference);
-    await activeSearchInput.press('Enter');
+    await this.page.keyboard.press('Enter');
 
     await this.waitForLightningIdle();
 

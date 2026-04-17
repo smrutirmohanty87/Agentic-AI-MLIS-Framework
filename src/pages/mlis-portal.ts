@@ -112,7 +112,10 @@ export class ProductSelectionPage {
     const limitInput = this.page.getByRole('spinbutton', { name: 'Limit of indemnity' });
     await limitInput.fill(limit);
     await limitInput.press('Tab');
-    await expect(limitInput).toHaveValue(/500,000\.00|500000/);
+
+    const digitsOnly = limit.replace(/[^0-9]/g, '');
+    const withCommas = digitsOnly.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    await expect(limitInput).toHaveValue(new RegExp(`(${withCommas}|${digitsOnly})(\\.00)?`));
   }
 
   async selectProductsByIndex(indexes: number[]) {
@@ -210,12 +213,44 @@ export class FinalPolicyDetailsPage {
     await expect(this.page.getByRole('heading', { name: 'Final policy details' })).toBeVisible({ timeout: 20000 });
   }
 
-  async fillRequiredDetails() {
-    const requiredInputs = this.page.locator('input[required]');
-    await requiredInputs.nth(0).fill('E2E Test Client');
-    await requiredInputs.nth(1).fill('EC3A 2BJ');
-    await requiredInputs.nth(2).fill('52-54 Leadenhall Street');
-    await requiredInputs.nth(3).fill('London');
+  async fillRequiredDetails(data?: {
+    insuredName?: string;
+    postcode?: string;
+    addressLine1?: string;
+    town?: string;
+    landRegisterNumber?: string;
+  }) {
+    let requiredInputs = this.page.locator('input[required]');
+
+    await requiredInputs.nth(0).fill(data?.insuredName ?? 'E2E Test Client');
+
+    const postcodeInput = requiredInputs.nth(1);
+    await postcodeInput.fill(data?.postcode ?? 'EC3A 2BJ');
+    await postcodeInput.press('Tab').catch(() => {});
+
+    const enterManually = this.page
+      .getByRole('button', { name: /enter manually/i })
+      .or(this.page.getByRole('link', { name: /enter manually/i }))
+      .first();
+
+    if (await enterManually.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await enterManually.click();
+    }
+
+    requiredInputs = this.page.locator('input[required]');
+    await expect(requiredInputs.nth(2)).toBeVisible({ timeout: 20000 });
+    await requiredInputs.nth(2).fill(data?.addressLine1 ?? '52-54 Leadenhall Street');
+    await requiredInputs.nth(3).fill(data?.town ?? 'London');
+
+    if (data?.landRegisterNumber) {
+      const landRegisterInput = this.page
+        .getByRole('textbox', { name: /(Land\s*register|Land\s*registry|Title\s*(number|no\.?))/i })
+        .first();
+
+      if (await landRegisterInput.isVisible({ timeout: 1500 }).catch(() => false)) {
+        await landRegisterInput.fill(data.landRegisterNumber);
+      }
+    }
   }
 
   async proceed() {
@@ -231,11 +266,23 @@ export class SummaryPage {
     await expect(this.page.getByRole('heading', { name: 'Summary' })).toBeVisible({ timeout: 20000 });
   }
 
-  async expectSummaryData(caseRef: string) {
+  async expectSummaryData(
+    caseRef: string,
+    expected?: {
+      limitOfIndemnity?: string;
+      insuredName?: string;
+      addressLine1?: string;
+    },
+  ) {
     await expect(this.page.getByText(caseRef)).toBeVisible();
-    await expect(this.page.getByText('£500,000.00')).toBeVisible();
-    await expect(this.page.getByText('E2E Test Client')).toBeVisible();
-    await expect(this.page.getByText('52-54 Leadenhall Street')).toBeVisible();
+
+    const limitDigits = (expected?.limitOfIndemnity ?? '500000').replace(/[^0-9]/g, '');
+    const limitNumber = Number(limitDigits || '0');
+    const formattedLimit = limitNumber.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    await expect(this.page.getByText(`£${formattedLimit}`)).toBeVisible();
+
+    await expect(this.page.getByText(expected?.insuredName ?? 'E2E Test Client')).toBeVisible();
+    await expect(this.page.getByText(expected?.addressLine1 ?? '52-54 Leadenhall Street')).toBeVisible();
     await expect(this.page.getByText('Premium: £')).toBeVisible();
   }
 

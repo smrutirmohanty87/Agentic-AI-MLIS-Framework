@@ -25,8 +25,9 @@ The Residential Quick Quote flow on the MLIS Portal (My Legal Indemnity Shop) al
     - expect: Page navigates to /mlisportal/quick-quote-residential
     - expect: Step 1 of 3 form is displayed
     - expect: All required fields are visible: Your name, Your email address, Conveyancing firm, Conveyancer's email address, Reference, Postcode
+    -from dropdown. 
     - expect: The confirmation checkbox reads 'I confirm the property of interest is based in England or Wales'
-  4. Fill in Step 1 form: Your name = 'John Smith', Email = 'john.smith@test.com', Conveyancing firm = 'Smith & Partners', Conveyancer's email = 'conveyancer@smithpartners.com', Reference = 'QQ-EW-001', Postcode = 'EC3A 5AF'
+  4. Fill in Step 1 form: Your name = 'John Smith', Email = 'john.smith@test.com', Conveyancing firm = 'Smith & Partners', Conveyancer's email = 'conveyancer@smithpartners.com', Reference = 'QQ-EW-001', Postcode = 'EC3A2BJ'after entering postal code click on search and select (Nexus, 52-54 Leadenhall Street, London, EC3A 2BJ ) 
     - expect: All text fields are filled with the provided values
   5. Check the confirmation checkbox 'I confirm the property of interest is based in England or Wales'
     - expect: The checkbox becomes checked

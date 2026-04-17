@@ -14,13 +14,12 @@ import { BrokerPortalPage } from '../../src/pages/broker-portal-policy';
 import { SalesforcePortalPage } from '../../src/pages/salesforce-cancellation';
 import { getBrokerCredentials, getSalesforceCredentials } from '../../src/config/env';
 
-test.describe('Cancellation from Inception - Full Premium Return', () => {
-  test.describe.configure({ retries: 0 });
-  test('should cancel policy from inception with full premium return', async ({ page }) => {
+test.describe('@regression | E2E | MTA | Cancellation', () => {
+  test('TC_REG_016 | Create MTA (Mid-Term Adjustment) then cancel the policy', async ({ page }) => {
     test.setTimeout(900000);
     test.slow();
 
-    const caseRef = `E2E-CAN-INFULL-${Date.now()}`;
+    const caseRef = `E2E-MTA-CAN-${Date.now()}`;
 
     const brokerLogin = new LoginPage(page);
     const quoteManager = new QuoteManagerPage(page);
@@ -35,7 +34,7 @@ test.describe('Cancellation from Inception - Full Premium Return', () => {
     const brokerPortal = new BrokerPortalPage(page);
     const salesforce = new SalesforcePortalPage(page);
 
-    // Create a fresh policy in Broker Portal so cancellation runs against a known live policy.
+    // Create a fresh policy in Broker Portal
     await brokerLogin.goto();
     const brokerCreds = getBrokerCredentials();
     await brokerLogin.login(brokerCreds.username, brokerCreds.password);
@@ -68,35 +67,44 @@ test.describe('Cancellation from Inception - Full Premium Return', () => {
     const policyNumber = await policyIssued.getIssuedPolicyNumber();
     await policyIssued.backToQuoteManager();
 
-    // Verify policy is live before cancelling.
+    // Verify policy is live
     await brokerPortal.expectQuoteManagerLoaded();
     await brokerPortal.searchPolicy(policyNumber);
     await brokerPortal.expectPolicyStatus(policyNumber, 'Live');
 
-    // Step 4: Login to Salesforce Portal
+    // Login to Salesforce Portal
     await salesforce.goto();
     const sfCreds = getSalesforceCredentials();
     await salesforce.login(sfCreds.username, sfCreds.password);
 
-    // Step 5-6: Global Search → Search & open policy record
-    await salesforce.searchPolicyInGlobalSearchStraight(policyNumber);
+    // Global Search → open the exact policy number from the results grid
+    await salesforce.searchAndOpenExactFromGlobalSearchGrid(policyNumber);
 
-    // Step 7: Navigate to Related tab
+    // Navigate to Related tab → open Insurance Policy record
     await salesforce.openRelatedTab();
+    await salesforce.openInsurancePolicyFromRelated(policyNumber);
 
-    // Step 8-9: Scroll to Insurance Policy section & open the record
-    await salesforce.openInsurancePolicyFromRelatedStraight();
+    // Create MTA
+    await salesforce.openCreateMTADialog();
+    await salesforce.fillMTAReasonAndSave('Non Material Amendment');
+    await salesforce.fillIntermediaryReference(`MTA-REF-${Date.now()}`);
+    await salesforce.editMTAPremium('100');
+    await salesforce.bindMTA();
 
-    // Step 10: Click Cancel Policy from Show more actions
-    await salesforce.openCancelPolicyWizardStraight();
+    // Refresh to ensure the latest policy state is loaded after MTA binding
+    await page.reload({ waitUntil: 'domcontentloaded' });
 
-    // Step 11-13: Complete cancellation flow (from inception, full return)
-    await salesforce.completeCancelFromInceptionStep1Straight(
+    // Step 10: Open Cancel Policy wizard from "Show more actions" menu
+    await salesforce.openCancelPolicyWizard();
+
+    // Step 11: Fill Cancel Policy Step 1 — category, instigated by, reason, notes
+    await salesforce.completeCancelFromInceptionStep1(
       `Policy cancellation from inception - full premium return test (${policyNumber})`,
     );
 
-    await salesforce.completePremiumStepWithTaxCalculationStraight();
-    await salesforce.submitCancellation();
+    // Step 12: Calculate Tax -> OK -> Next (opt-in flow for this test only)
+    await salesforce.completePremiumStepCalculateTaxOkAndNext();
+
     await salesforce.expectPolicyStatusCancelled();
   });
 });
